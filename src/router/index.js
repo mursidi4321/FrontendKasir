@@ -3,6 +3,7 @@ import { createRouter, createWebHistory } from "vue-router";
 import PosPage from "@/views/sales/PosPage.vue";
 import ProductList from "@/views/products/ProductList.vue";
 import ProductFormPage from "@/views/products/ProductFormPage.vue";
+import ProductDetail from "@/views/products/ProductDetail.vue";
 import PurchasesView from "@/views/purchases/PurchasesView.vue";
 import CashflowPage from "@/views/cashflows/CashflowPage.vue";
 import ReportPage from "@/views/reports/DashboarReportPage.vue";
@@ -27,6 +28,12 @@ const routes = [
     path: "/products/edit/:id",
     name: "ProductEdit",
     component: ProductFormPage,
+    props: true,
+  },
+  {
+    path: "/products/:id",
+    name: "ProductDetail",
+    component: ProductDetail,
     props: true,
   },
 

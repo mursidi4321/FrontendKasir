@@ -8,6 +8,7 @@
       <h3 class="mb-0">Daftar Produk</h3>
 
       <div class="d-flex gap-2 align-items-center flex-wrap">
+        <!-- Pencarian -->
         <input
           v-model="searchQuery"
           type="text"
@@ -17,23 +18,25 @@
           style="width: 220px"
         />
 
+        <!-- Filter stok -->
         <select
           v-model="stockFilter"
           class="form-select form-select-sm"
           style="width: 180px"
         >
           <option value="all">Semua Produk</option>
-          <option value="low">Stok Rendah (≤ Min)</option>
+          <option value="low">Stok Rendah (≤ Min Stok)</option>
           <option value="high">Stok Tertinggi</option>
         </select>
 
+        <!-- Tambah -->
         <router-link to="/products/create" class="btn btn-success btn-sm">
           <i class="bi bi-plus-lg"></i> Tambah
         </router-link>
       </div>
     </div>
 
-    <!-- Tidak Ditemukan -->
+    <!-- Jika hasil pencarian kosong -->
     <div
       v-if="filteredProducts.length === 0 && searchQuery"
       class="alert alert-warning d-flex justify-content-between align-items-center"
@@ -44,6 +47,7 @@
         }}</strong
         >"
       </div>
+
       <router-link to="/products/create" class="btn btn-sm btn-outline-primary">
         ➕ Tambah Produk Baru
       </router-link>
@@ -51,11 +55,10 @@
 
     <!-- Tabel Produk -->
     <ProductTable
-      v-else
       :products="filteredProducts"
+      @view="viewProduct"
       @edit="editProduct"
       @delete="deleteProduct"
-      @order="orderProduct"
     />
   </div>
 </template>
@@ -67,38 +70,36 @@ import ProductTable from "@/components/ProductTable.vue";
 import productService from "@/services/productService";
 import { useAlert } from "@/composables/useAlert";
 
-
 const router = useRouter();
-const { confirmDelete, success, info } = useAlert();
-const searchInput = ref(null);
+const { confirmDelete, success } = useAlert();
 
 // State
 const products = ref([]);
 const searchQuery = ref("");
 const stockFilter = ref("all");
-const alertShown = ref(false);
+const searchInput = ref(null);
 
-// Ambil data produk
+// Ambil produk dari API
 const fetchProducts = async () => {
   const res = await productService.getAll();
   products.value = res.data;
 };
 
-// Filter produk berdasarkan stok & pencarian
+// Filter produk
 const filteredProducts = computed(() => {
-  let result = [...products.value];
+  let list = [...products.value];
 
   // Filter stok
   if (stockFilter.value === "low") {
-    result = result.filter((p) => p.stock <= p.min_stock);
+    list = list.filter((p) => p.stock <= p.min_stock);
   } else if (stockFilter.value === "high") {
-    result = result.sort((a, b) => b.stock - a.stock);
+    list = list.sort((a, b) => b.stock - a.stock);
   }
 
-  // Pencarian
+  // Filter pencarian
   if (searchQuery.value.trim()) {
     const q = searchQuery.value.toLowerCase();
-    result = result.filter(
+    list = list.filter(
       (p) =>
         p.name.toLowerCase().includes(q) ||
         p.code.toLowerCase().includes(q) ||
@@ -106,58 +107,35 @@ const filteredProducts = computed(() => {
     );
   }
 
-  return result;
+  return list;
 });
 
-// Aksi Produk
+// Aksi
 const editProduct = (product) => {
   router.push({ name: "ProductEdit", params: { id: product.id } });
-  // router.push({ name: "ProductEdit" });
-  // router.push('/products')
 };
 
 const deleteProduct = async (id) => {
   const confirm = await confirmDelete(
-    "Produk akan dihapus dan tidak bisa dikembalikan!"
+    "Produk akan dihapus dan tidak dapat dikembalikan!"
   );
   if (confirm.isConfirmed) {
     await productService.delete(id);
     await fetchProducts();
-    success("Produk dihapus");
+    success("Produk berhasil dihapus");
   }
 };
 
-const orderProduct = (product) => {
-  alert(`Order untuk: ${product.name}`);
+const viewProduct = (product) => {
+  router.push({ name: "ProductDetail", params: { id: product.id } });
 };
 
-// Tawarkan tambah produk jika tidak ditemukan
-const askToAddProduct = async (keyword) => {
-  const confirm = await info(
-    `Produk "${keyword}" tidak ditemukan. Tambahkan sekarang?`,
-    "Tambah Produk?"
-  );
-  if (confirm.isConfirmed) {
-    // router.push({ name: "ProductCreate", query: { name: keyword } });
-    router.push({ name: "ProductCreate" });
-    // router.push('/products')
-  }
-  setTimeout(() => (alertShown.value = false), 1000);
-};
-
-// Watcher pencarian
-watch(searchQuery, (val) => {
-  if (val.trim() && filteredProducts.value.length === 0 && !alertShown.value) {
-    alertShown.value = true;
-    // askToAddProduct(val); // aktifkan jika ingin fitur prompt tambah
-  }
-});
-
+// Mounted
 onMounted(async () => {
   await fetchProducts();
 
   setTimeout(() => {
     searchInput.value?.focus();
-  }, 50);
+  }, 100);
 });
 </script>
