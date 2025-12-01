@@ -1,108 +1,94 @@
 <template>
   <div class="card shadow-sm">
-    <div
-      class="card-header bg-success text-white d-flex justify-content-between align-items-center"
-    >
+    <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
       <h5 class="mb-0">{{ isEdit ? "Edit Produk" : "Tambah Produk Baru" }}</h5>
-      <router-link class="btn btn-outline-light btn-sm" to="/products">
-        ← Kembali ke Daftar Produk
-      </router-link>
+      <router-link class="btn btn-outline-light btn-sm" to="/products">← Kembali ke Daftar Produk</router-link>
     </div>
     <div class="card-body">
       <form @submit.prevent="submitForm" @keydown.enter.prevent>
         <div class="row g-3">
+          <!-- KODE PRODUK -->
           <div class="col-md-3">
             <label class="form-label">Kode Produk</label>
-            <input
-              type="text"
-              v-model="form.code"
-              class="form-control"
-              readonly
-            />
+            <input type="text" v-model="form.code" class="form-control" readonly />
           </div>
 
+          <!-- BARANG/JASA -->
           <div class="col-md-3">
             <label class="form-label">Barang/Jasa</label>
             <select v-model="form.type" class="form-select">
               <option value="barang">Barang</option>
               <option value="jasa">Jasa</option>
-            </select>cd
+            </select>
           </div>
 
+          <!-- NAMA PRODUK -->
           <div class="col-md-6">
             <label class="form-label">Nama</label>
-            <input
-              v-model="form.name"
-              class="form-control"
-              required
-              ref="nameInput"
-            />
+            <input v-model="form.name" class="form-control" required ref="nameInput" />
           </div>
 
+          <!-- BARCODE -->
           <div class="col-md-6">
             <label class="form-label">Barcode</label>
-            <input
-              v-model="form.barcode"
-              @blur="checkDuplicateBarcode"
-              class="form-control"
-              :class="{ 'is-invalid': barcodeError }"
-            />
-            <div v-if="barcodeError" class="invalid-feedback">
-              Barcode sudah digunakan, silakan ganti.
-            </div>
+            <input v-model="form.barcode" @blur="checkDuplicateBarcode" class="form-control" :class="{ 'is-invalid': barcodeError }" />
+            <div v-if="barcodeError" class="invalid-feedback">Barcode sudah digunakan, silakan ganti.</div>
           </div>
 
-          <div class="col-md-6">
-            <label class="form-label">Harga Beli</label>
-            <input
-              type="number"
-              v-model.number="form.purchase_price"
-              class="form-control"
-              required
-              min="0"
-            />
-          </div>
-
-          <div class="col-md-6">
+          <!-- HARGA JUAL -->
+          <div class="col-md-3">
             <label class="form-label">Harga Jual</label>
-            <input
-              type="number"
-              v-model.number="form.price"
-              class="form-control"
-              required
-              min="0"
-            />
+            <input type="number" v-model.number="form.price" class="form-control" required min="0" />
           </div>
 
+          <!-- HARGA BELI -->
           <div class="col-md-3">
+            <label class="form-label">Harga Beli</label>
+            <input type="number" v-model.number="form.purchase_price" class="form-control" required min="0" />
+          </div>
+
+          <!-- STOK -->
+          <div class="col-md-2">
             <label class="form-label">Stok</label>
-            <input
-              type="number"
-              v-model.number="form.stock"
-              class="form-control"
-              required
-              min="0"
-            />
+            <input type="number" v-model.number="form.stock" class="form-control" required min="0" />
           </div>
 
-          <div class="col-md-3">
+          <!-- MIN STOK -->
+          <div class="col-md-2">
             <label class="form-label">Min. Stok</label>
-            <input
-              type="number"
-              v-model.number="form.min_stock"
-              class="form-control"
-              min="0"
-            />
+            <input type="number" v-model.number="form.min_stock" class="form-control" min="0" />
+          </div>
+
+          <!-- SATUAN -->
+          <div class="col-md-2">
+            <label class="form-label">Satuan</label>
+            <select v-model="form.satuan" class="form-select">
+              <option value="pcs">PCS</option>
+              <option value="pack">Pack</option>
+              <option value="box">Box</option>
+              <option value="kg">Kg</option>
+              <option value="gram">Gram</option>
+              <option value="liter">Liter</option>
+              <option value="meter">Meter</option>
+            </select>
+          </div>
+
+          <!-- SATUAN DASAR -->
+          <div class="col-md-2">
+            <label class="form-label">Satuan Dasar</label>
+            <input v-model="form.satuan_dasar" class="form-control" required />
+          </div>
+
+          <!-- KONVERSI -->
+          <div class="col-md-4">
+            <label class="form-label">Konversi (JSON)</label>
+            <input v-model="konversiText" class="form-control" placeholder='{"box":12,"pack":6}' />
           </div>
         </div>
 
         <div class="mt-4 d-flex gap-2 justify-content-end">
-          <button class="btn btn-success" type="submit">
-            {{ isEdit ? "Update" : "Simpan" }}
-          </button>
-          <button class="btn btn-secondary" type="button" @click="resetForm">
-            <i class="bi bi-x-circle"></i> Reset
-          </button>
+          <button class="btn btn-success" type="submit">{{ isEdit ? "Update" : "Simpan" }}</button>
+          <button class="btn btn-secondary" type="button" @click="resetForm"><i class="bi bi-x-circle"></i> Reset</button>
         </div>
       </form>
     </div>
@@ -110,7 +96,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from "vue";
+import { ref, onMounted, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import productService from "@/services/productService";
 import { useAlert } from "@/composables/useAlert";
@@ -128,6 +114,18 @@ const form = ref({
   stock: 0,
   min_stock: 0,
   type: "barang",
+  satuan: "pcs",
+  satuan_dasar: "pcs",
+  konversi: {},
+});
+
+const konversiText = ref(JSON.stringify(form.value.konversi));
+watch(konversiText, val => {
+  try {
+    form.value.konversi = JSON.parse(val || "{}");
+  } catch {
+    // invalid JSON
+  }
 });
 
 const nameInput = ref(null);
@@ -137,7 +135,6 @@ const id = route.params.id;
 const barcodeError = ref(false);
 const submitting = ref(false);
 
-// Cek barcode duplikat
 const checkDuplicateBarcode = async () => {
   try {
     barcodeError.value = false;
@@ -154,20 +151,21 @@ const checkDuplicateBarcode = async () => {
   }
 };
 
-// Load produk jika edit
 const loadProduct = async () => {
   try {
     const res = await productService.get(id);
     form.value = res.data;
+    konversiText.value = JSON.stringify(form.value.konversi || {});
+    if (!form.value.satuan) form.value.satuan = "pcs";
+    if (!form.value.satuan_dasar) form.value.satuan_dasar = "pcs";
   } catch (err) {
     console.error(err);
     error("Gagal memuat data produk");
   }
 };
 
-// Submit form
 const submitForm = async () => {
-  if (submitting.value) return; // cegah submit ganda
+  if (submitting.value) return;
   submitting.value = true;
 
   try {
@@ -175,7 +173,6 @@ const submitForm = async () => {
       error("Nama produk minimal 2 karakter");
       return;
     }
-
     if (barcodeError.value) {
       error("Barcode duplikat, tidak bisa disimpan.");
       return;
@@ -194,16 +191,13 @@ const submitForm = async () => {
     console.error(err);
     error("Gagal menyimpan produk", err.response?.data?.message || err.message);
   } finally {
-    // 🔥 selalu reset submitting, tidak peduli return atau error apa pun
     submitting.value = false;
   }
 };
 
-// Reset form
 const resetForm = () => {
-  if (isEdit) {
-    loadProduct();
-  } else {
+  if (isEdit) loadProduct();
+  else {
     form.value = {
       name: "",
       code: "",
@@ -213,12 +207,15 @@ const resetForm = () => {
       stock: 0,
       min_stock: 0,
       type: "barang",
+      satuan: "pcs",
+      satuan_dasar: "pcs",
+      konversi: {},
     };
+    konversiText.value = "{}";
     generateCode();
   }
 };
 
-// Generate kode produk baru
 const generateCode = async () => {
   try {
     const res = await productService.getNextCode();
@@ -229,16 +226,8 @@ const generateCode = async () => {
 };
 
 onMounted(async () => {
-  if (isEdit) {
-    await loadProduct();
-  } else {
-    await generateCode();
-  }
-
-  if (route.query.name) {
-    form.value.name = route.query.name;
-  }
-
+  if (isEdit) await loadProduct();
+  else await generateCode();
   nameInput.value?.focus();
 });
 </script>
