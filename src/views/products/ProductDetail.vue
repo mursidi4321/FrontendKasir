@@ -25,7 +25,7 @@
           <!-- Gambar Produk -->
           <div class="col-md-4 d-flex justify-content-center align-items-center">
             <img
-              :src="product?.id ? `https://picsum.photos/seed/${product.id}/300/300` : 'https://picsum.photos/300/300?grayscale'"
+              :src="productImage"
               alt="Gambar Produk"
               class="img-fluid rounded border"
             />
@@ -45,6 +45,8 @@ import { useAlert } from "@/composables/useAlert";
 const route = useRoute();
 const router = useRouter();
 const { error } = useAlert();
+
+const SERVER = import.meta.env.VITE_API_URL;
 
 const product = ref(null);
 const loading = ref(true);
@@ -71,7 +73,6 @@ const formatDate = (dateStr) => {
   return d.toLocaleString("id-ID", { dateStyle: "medium", timeStyle: "short" });
 };
 
-// Computed fields aman untuk product null
 const productFields = computed(() => {
   if (!product.value) return {};
   return {
@@ -90,6 +91,19 @@ const productFields = computed(() => {
     "Dibuat Pada": formatDate(product.value.created_at),
     ...(product.value.deleted_at ? { "Dihapus Pada": formatDate(product.value.deleted_at) } : {}),
   };
+});
+
+// Computed untuk gambar produk
+const productImage = computed(() => {
+  if (!product.value) return 'https://picsum.photos/300/300?grayscale';
+  if (product.value.image_path) {
+    // jika path relatif dari backend
+    return product.value.image_path.startsWith("http")
+      ? product.value.image_path
+      : `${SERVER.replace('/api','')}/${product.value.image_path}`;
+  }
+  // fallback
+  return `https://picsum.photos/seed/${product.value.id}/300/300`;
 });
 
 onMounted(() => fetchProduct());

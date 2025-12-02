@@ -1,6 +1,7 @@
+<!-- ProductEditWrapper.vue -->
 <template>
-  <div class="content-wrapper d-flex justify-content-center align-items-center">
-    <div class="container" style="max-width: 960px">
+  <div class="content-wrapper">
+    <div class="container form-container">
       <ProductForm :product="product" />
     </div>
   </div>
@@ -24,13 +25,26 @@ onMounted(async () => {
 </script>
 
 <style scoped>
+/* Wrapper fleksibel di tengah layar */
 .content-wrapper {
-  min-height: calc(100vh - 60px - 40px);
+  min-height: calc(100vh - 60px); /* sesuaikan header jika ada */
   display: flex;
   justify-content: center;
-  align-items: center;
-  margin-top: 40px;
+  align-items: flex-start; /* top align agar scroll muncul */
+  padding-top: 70px;
   background-color: #f8f9fa;
-  overflow: hidden;
+}
+
+/* Container form */
+.form-container {
+  max-width: 960px;
+  width: 100%;
+}
+
+/* Gambar preview kecil */
+.img-thumbnail {
+  max-height: 100px; /* kecil agar tidak scroll horizontal */
+  width: auto;
+  border: 1px solid #ddd;
 }
 </style>
