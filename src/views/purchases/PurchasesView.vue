@@ -1,40 +1,30 @@
 <template>
-  <div class="container mt-5 pt-4">
-    <h4 class="text-primary fw-bold mb-4">
-      <i class="bi bi-truck me-2"></i>Pembelian Barang
-    </h4>
-
-    <!-- Supplier & Faktur -->
-    <div class="row mb-4">
-      <div class="col-md-6 mb-2">
-        <label class="form-label">Supplier</label>
-        <input
-          v-model="purchase.supplier"
-          type="text"
-          class="form-control form-control-sm"
-        />
+  <div class="container mt-4 pt-5">
+    <!-- HEADER -->
+    <div
+      class="d-flex justify-content-between align-items-center mb-2 flex-wrap gap-2"
+    >
+      <div class="d-flex align-items-center gap-3 flex-wrap">
+        <small class="text-muted"
+          >Nota: <strong>{{ invoiceNumber }}</strong></small
+        >
       </div>
-      <div class="col-md-6 mb-2">
-        <label class="form-label">No. Faktur</label>
-        <input
-          v-model="purchase.invoice"
-          type="text"
-          class="form-control form-control-sm"
-          readonly
-        />
+      <div class="kasir-total-box text-end">
+        <div class="kasir-label">TOTAL PEMBELIAN</div>
+        <div class="kasir-amount">Rp {{ total.toLocaleString() }}</div>
       </div>
     </div>
 
-    <!-- Input Produk + Autocomplete -->
-    <div class="mb-3 position-relative">
+    <!-- SEARCH -->
+    <div class="mb-2 position-relative">
       <div class="input-group input-group-sm">
-        <span class="input-group-text bg-white">
-          <i class="bi bi-search text-muted"></i>
-        </span>
+        <span class="input-group-text bg-white"
+          ><i class="bi bi-search text-muted"></i
+        ></span>
         <input
+          ref="searchInputEl"
           v-model="searchInput"
-          ref="searchInputRef"
-          @input="updateSuggestions"
+          @input="debouncedUpdateSuggestions"
           @keydown.enter.prevent="addProductBySearch"
           type="text"
           class="form-control"
@@ -42,38 +32,38 @@
           autocomplete="off"
         />
       </div>
-      <small class="text-muted"
-        >Tekan Enter atau klik hasil untuk menambahkan</small
-      >
 
-      <!-- Autocomplete suggestion -->
+      <!-- SUGGESTION LIST -->
       <ul
-        v-if="suggestions.length > 0"
-        class="list-group position-absolute w-100 shadow-sm z-3"
-        style="max-height: 200px; overflow-y: auto"
+        v-if="suggestions.length"
+        class="list-group position-absolute w-100 shadow-sm z-3 mt-1"
+        style="max-height: 180px; overflow-y: auto"
       >
         <li
+          v-for="s in suggestions"
+          :key="s.id"
           class="list-group-item list-group-item-action py-1"
-          v-for="(s, index) in suggestions"
-          :key="index"
-          @click="selectSuggestion(s)"
         >
-          <strong>{{ s.name }}</strong>
-          <small class="text-muted">({{ s.code }})</small>
+          <div @click="selectSuggestion(s)">
+            {{ s.name }} <small class="text-muted">({{ s.code }})</small> —
+            Stok: {{ s.stock || 0 }} — Rp{{
+              (s.purchase_price || 0).toLocaleString()
+            }}
+          </div>
         </li>
       </ul>
     </div>
 
-    <!-- Tabel Pembelian -->
-    <div class="table-responsive shadow-sm border rounded compact-scroll">
+    <!-- TABLE -->
+    <div class="table-responsive border rounded compact-scroll">
       <table class="table table-sm table-bordered align-middle mb-0">
-        <thead class="table-light">
+        <thead class="table-light text-center">
           <tr>
             <th>Produk</th>
-            <th style="width: 100px">Qty</th>
-            <th style="width: 130px">Harga Beli</th>
-            <th class="text-end">Subtotal</th>
-            <th style="width: 50px"></th>
+            <th style="width: 70px">Qty</th>
+            <th style="width: 110px">Harga Beli</th>
+            <th style="width: 110px">Subtotal</th>
+            <th style="width: 40px"></th>
           </tr>
         </thead>
         <tbody>
@@ -85,30 +75,26 @@
                 type="number"
                 min="1"
                 class="form-control form-control-sm text-center"
+                @change="validateQuantity(item)"
               />
             </td>
-            <td>
-              <input
-                v-model.number="item.buy_price"
-                type="number"
-                min="0"
-                class="form-control form-control-sm text-end"
-              />
-            </td>
+            <td>Rp{{ (item.buy_price || 0).toLocaleString() }}</td>
             <td class="text-end fw-semibold">
-              Rp {{ (item.quantity * item.buy_price).toLocaleString() }}
+              Rp{{
+                ((item.quantity || 0) * (item.buy_price || 0)).toLocaleString()
+              }}
             </td>
             <td class="text-center">
               <button
-                class="btn btn-sm btn-outline-danger"
+                class="btn btn-sm btn-outline-danger py-0 px-1"
                 @click="removeItem(item)"
               >
-                <i class="bi bi-trash-fill"></i>
+                <i class="bi bi-x"></i>
               </button>
             </td>
           </tr>
-          <tr v-if="purchase.items.length === 0">
-            <td colspan="5" class="text-center text-muted py-3">
+          <tr v-if="!purchase.items.length">
+            <td colspan="5" class="text-center text-muted py-2">
               Belum ada produk
             </td>
           </tr>
@@ -116,180 +102,203 @@
       </table>
     </div>
 
-    <!-- Total & Simpan -->
-    <div class="mt-3 d-flex justify-content-between align-items-center">
-      <h5>
-        Total: <span class="text-primary">Rp {{ total.toLocaleString() }}</span>
-      </h5>
+    <!-- ACTION -->
+    <div
+      class="mt-3 d-flex justify-content-between align-items-center flex-wrap gap-2"
+    >
+      <strong class="text-success"
+        >Total: Rp {{ total.toLocaleString() }}</strong
+      >
       <button
-        class="btn btn-success"
-        :disabled="!canSubmit"
+        class="btn btn-sm btn-primary"
+        :disabled="!canSubmit || loading"
         @click="submitPurchase"
       >
-        <i class="bi bi-save2-fill me-1"></i>Simpan Pembelian
+        <i class="bi bi-save"></i> Simpan Pembelian
       </button>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from "vue";
-import axios from "axios";
+import { ref, computed, onMounted, nextTick } from "vue";
 import productService from "@/services/productService";
 import purchaseService from "@/services/purchaseService";
 import { useAlert } from "@/composables/useAlert";
-const loading = ref(false);
-const { confirmDelete, success, info, error } = useAlert();
-const searchInputRef = ref(null);
+
+const { success, error } = useAlert();
 
 const searchInput = ref("");
 const products = ref([]);
-
 const suggestions = ref([]);
+const purchase = ref({ items: [] });
+const invoiceNumber = ref(generateInvoiceNumber());
+const loading = ref(false);
+const searchInputEl = ref(null);
 
-// Default nilai awal pembelian
-const purchase = ref({
-  supplier: "Default Supplier",
-  invoice: "",
-  items: [],
-});
+const total = computed(() =>
+  purchase.value.items.reduce(
+    (s, i) => s + (i.quantity || 0) * (i.buy_price || 0),
+    0
+  )
+);
+const canSubmit = computed(() => purchase.value.items.length > 0);
 
 onMounted(async () => {
-  const res = await productService.getAll();
-  products.value = res.data;
-
-  generateInvoiceNumber();
-  focusSearch();
+  try {
+    const res = await productService.getAll();
+    products.value = res.data;
+    await nextTick();
+    searchInputEl.value?.focus();
+  } catch {
+    error("Gagal memuat data produk");
+  }
 });
 
-// Generate nomor faktur otomatis
-function generateInvoiceNumber() {
-  const today = new Date();
-  const datePart = today.toISOString().slice(0, 10).replace(/-/g, ""); // YYYYMMDD
-  const random = Math.floor(Math.random() * 9000 + 1000); // 4 digit random
-  purchase.value.invoice = `PB-${datePart}-${random}`;
+let debounceTimer;
+function debouncedUpdateSuggestions() {
+  clearTimeout(debounceTimer);
+  debounceTimer = setTimeout(updateSuggestions, 200);
 }
 
 function updateSuggestions() {
-  const query = searchInput.value.trim().toLowerCase();
-  if (!query) {
-    suggestions.value = [];
-    return;
-  }
-
+  const q = searchInput.value.trim().toLowerCase();
+  if (!q) return (suggestions.value = []);
   suggestions.value = products.value
     .filter((p) =>
-      [p.name, p.code, p.barcode].some((val) =>
-        val.toLowerCase().includes(query)
-      )
+      p.type ==="barang" && // hanya product barang
+      [p.name, p.code, p.barcode].some((v) => v?.toLowerCase().includes(q))
     )
-    .slice(0, 10); // Maksimal 5 saran
+    .slice(0, 20);
 }
 
-function selectSuggestion(product) {
-  addProduct(product);
+function selectSuggestion(p) {
+  addProduct(p);
   searchInput.value = "";
   suggestions.value = [];
-  focusSearch();
 }
 
 function addProductBySearch() {
-  if (suggestions.value.length > 0) {
-    selectSuggestion(suggestions.value[0]);
-  } else {
-    const query = searchInput.value.trim().toLowerCase();
-    const found = products.value.find((p) =>
-      [p.code, p.name, p.barcode].some((val) =>
-        val.toLowerCase().includes(query)
-      )
-    );
-
-    if (found) {
-      addProduct(found);
-      searchInput.value = "";
-      suggestions.value = [];
-      focusSearch();
-    } else {
-      alert("Produk tidak ditemukan.");
-    }
-  }
+  if (suggestions.value.length) return selectSuggestion(suggestions.value[0]);
+  const q = searchInput.value.trim().toLowerCase();
+  const found = products.value.find((p) =>
+    [p.code, p.name, p.barcode].some((v) => v?.toLowerCase().includes(q))
+  );
+  found ? selectSuggestion(found) : error("Produk tidak ditemukan.");
 }
 
-function addProduct(product) {
-  const existing = purchase.value.items.find((i) => i.id === product.id);
-  if (existing) {
-    existing.quantity++;
+function addProduct(p) {
+  if(p.type !== 'barang') return; // tipe jasa abaikan
+
+  const exist = purchase.value.items.find((i) => i.id === p.id);
+  if (exist) {
+    exist.quantity++;
   } else {
     purchase.value.items.push({
-      ...product,
+      ...p,
       quantity: 1,
-      buy_price: product.purchase_price ?? 0,
+      buy_price: p.purchase_price || 0,
     });
   }
-  focusSearch();
 }
 
 function removeItem(item) {
-  const index = purchase.value.items.findIndex((p) => p.id === item.id);
-  if (index !== -1) purchase.value.items.splice(index, 1);
+  purchase.value.items = purchase.value.items.filter((i) => i.id !== item.id);
 }
 
-const total = computed(() =>
-  purchase.value.items.reduce((sum, i) => sum + i.quantity * i.buy_price, 0)
-);
+function validateQuantity(item) {
+  if (item.quantity < 1) item.quantity = 1;
+}
 
-const canSubmit = computed(
-  () =>
-    purchase.value.supplier &&
-    purchase.value.invoice &&
-    purchase.value.items.length > 0
-);
-
-function focusSearch() {
-  setTimeout(() => {
-    searchInputRef.value?.focus();
-  }, 50);
+function generateInvoiceNumber() {
+  const n = new Date();
+  const f = (x) => x.toString().padStart(2, "0");
+  return `PB-${f(n.getFullYear() % 100)}${f(n.getMonth() + 1)}${f(
+    n.getDate()
+  )}-${f(n.getHours())}${f(n.getMinutes())}${f(n.getSeconds())}`;
 }
 
 async function submitPurchase() {
-  if (loading.value) return; // sudah ada
-
+  if (loading.value || !canSubmit.value) return;
+  loading.value = true;
   try {
+    const now = new Date();
+    const pad = (x) => x.toString().padStart(2, "0");
+    const dateStr = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(
+      now.getDate()
+    )} ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(
+      now.getSeconds()
+    )}`;
+
     const payload = {
-      supplier: purchase.value.supplier,
-      invoice: purchase.value.invoice,
+      supplier: "Toko Sumber Makmur", // bisa diganti sesuai input supplier
+      date: dateStr,
+      invoice_number: invoiceNumber.value,
+      total: total.value,
       items: purchase.value.items.map((i) => ({
         product_id: i.id,
-        quantity: i.quantity,
+        name: i.name,
+        type: i.type,
+        qty: i.quantity,
         buy_price: i.buy_price,
       })),
-      total: total.value,
     };
 
-    // const res = await axios.post('https://yourapi.com/api/purchase', payload)
-    const res = await purchaseService.create(payload);
-    // console.log(payload)
+    // console.log(payload);
+    await purchaseService.create(payload);
     success("Pembelian berhasil disimpan");
-    // alert('Pembelian berhasil disimpan.')
 
-    // Reset form
-    purchase.value = {
-      supplier: "Default Supplier",
-      invoice: "",
-      items: [],
-    };
-    generateInvoiceNumber();
+    purchase.value.items = [];
+    invoiceNumber.value = generateInvoiceNumber();
+    await nextTick();
+    searchInputEl.value?.focus();
   } catch (err) {
-    console.error("Gagal menyimpan pembelian:", err);
-    error("Terjadi kesalahan saat menyimpan");
-    // alert('Terjadi kesalahan saat menyimpan.')
+    console.error(err);
+    error("Terjadi kesalahan saat menyimpan pembelian");
+  } finally {
+    loading.value = false;
   }
 }
 </script>
 
 <style scoped>
 .compact-scroll {
-  max-height: 400px;
+  max-height: 320px;
   overflow-y: auto;
+}
+.table-sm td,
+.table-sm th {
+  padding: 0.38rem;
+}
+.kasir-total-box {
+  background: #000;
+  padding: 10px 18px;
+  border-radius: 6px;
+  min-width: 220px;
+  box-shadow: 0 0 8px rgba(0, 0, 0, 0.35);
+  border: 2px solid #333;
+}
+.kasir-label {
+  color: #f8f9fa;
+  font-size: 0.78rem;
+  font-weight: 500;
+  opacity: 0.8;
+}
+.kasir-amount {
+  font-size: 2.4rem;
+  font-weight: 700;
+  color: #00ff55;
+  margin-top: -3px;
+  font-family: "Seven Segment", monospace, sans-serif;
+  text-shadow: 0 0 8px #00ff55;
+}
+@media (max-width: 768px) {
+  .kasir-total-box {
+    min-width: 160px;
+    padding: 8px 12px;
+  }
+  .kasir-amount {
+    font-size: 1.7rem;
+  }
 }
 </style>
